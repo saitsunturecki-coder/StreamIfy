@@ -1,0 +1,319 @@
+/* ==========================================================================
+   RECAP — home tiles + popup modal
+   ========================================================================== */
+
+.home-grid {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 0;
+}
+
+.tile {
+  width: 104px;
+  height: 104px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease, background 0.15s ease;
+}
+
+.tile__icon {
+  width: 30px;
+  height: 30px;
+  fill: var(--green);
+}
+
+.tile__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 0 0.5rem;
+  line-height: 1.2;
+}
+
+button.tile {
+  appearance: none;
+}
+
+button.tile:hover {
+  border-color: var(--green-dim);
+  background: var(--surface);
+  transform: translateY(-2px);
+}
+
+button.tile:active {
+  transform: translateY(0);
+}
+
+.tile--soon {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tile--soon .tile__icon {
+  fill: var(--text-dim);
+}
+
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 7, 5, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.modal__panel {
+  position: relative;
+  width: min(300px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.5rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 20px 50px -18px rgba(0, 0, 0, 0.7);
+  animation: modal-in 0.18s ease;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal__close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.modal__close:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+
+.recap__preview-frame {
+  width: 100%;
+  max-width: 200px;
+  aspect-ratio: 9 / 16;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+}
+
+.recap__preview-frame canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* -------------------------------------------------------------------- */
+/* Recap skeleton — shown in the preview frame while the image is built */
+/* -------------------------------------------------------------------- */
+
+.recap__skeleton {
+  width: 100%;
+  height: 100%;
+  padding: 14% 10% 8%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recap__skeleton[hidden] {
+  display: none;
+}
+
+.recap__skeleton-bar {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.recap__skeleton-bar--title {
+  width: 70%;
+  height: 16px;
+}
+
+.recap__skeleton-bar--sub {
+  width: 45%;
+  margin-bottom: 6px;
+}
+
+.recap__skeleton-bar--label {
+  width: 55%;
+  margin-top: 10px;
+  margin-bottom: 2px;
+}
+
+.recap__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recap__skeleton-thumb {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 6px;
+}
+
+.recap__skeleton-thumb--round {
+  border-radius: 50%;
+}
+
+.recap__skeleton-line {
+  flex: 1;
+  height: 10px;
+  border-radius: 4px;
+}
+
+.recap__empty {
+  margin: 0;
+  padding: 0 1.1rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.recap__status {
+  min-height: 1.1em;
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* -------------------------------------------------------------------- */
+/* Circle actions                                                       */
+/* -------------------------------------------------------------------- */
+
+.modal__actions {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.circle-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.circle-btn {
+  width: 54px;
+  height: 54px;
+  border: none;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.circle-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.circle-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.circle-btn:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+.circle-btn:disabled {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.circle-action__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* -------------------------------------------------------------------- */
+/* Buy me a coffee link                                                 */
+/* -------------------------------------------------------------------- */
+
+.coffee-link {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  font-family: var(--font);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #2b2402;
+  text-decoration: none;
+  background: #ffe433;
+  border: 1px solid #e0c72c;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.coffee-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.55);
+}

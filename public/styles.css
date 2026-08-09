@@ -1,0 +1,950 @@
+/* ==========================================================================
+   SPOTIFY STATS — clean dark theme
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg:          #0a0d0b;
+  --surface:     #121512;
+  --surface-2:   #171b17;
+  --border:      #232823;
+
+  --text:        #eef2ee;
+  --text-dim:    #8d968e;
+
+  --green:       #34d399;
+  --green-soft:  rgba(52, 211, 153, 0.12);
+  --green-dim:   #1f7a5c;
+
+  --font: 'Manrope', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+/* The hidden attribute must always win, even over classes that set
+   display: flex/grid — otherwise JS-toggled hidden stops working. */
+[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+body {
+  padding: 3rem 1.25rem;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  animation: rise 0.4s ease-out;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* -------------------------------------------------------------------- */
+/* Top bar                                                              */
+/* -------------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+}
+
+.logo {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.logo .accent {
+  color: var(--green);
+}
+
+.login-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--green);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.login-btn:hover { opacity: 0.88; }
+.login-btn:active { transform: scale(0.97); }
+
+.user-chip[hidden] {
+  display: none;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem 0.3rem 0.3rem;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.user-chip:hover {
+  border-color: var(--green-dim);
+  background: var(--surface-2);
+}
+
+.user-chip__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.user-chip__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------- */
+/* Profile card                                                         */
+/* -------------------------------------------------------------------- */
+
+.profile-card[hidden] {
+  display: none;
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-card__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+  flex: none;
+}
+
+.profile-card__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-card__name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-card__email {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #f87171;
+  text-decoration: none;
+  border: 1px solid #f87171;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.logout-btn:hover {
+  color: var(--bg);
+  background-color: #f87171;
+  border-color: #f87171;
+}
+
+
+
+/* -------------------------------------------------------------------- */
+/* Content panels                                                       */
+/* -------------------------------------------------------------------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem 1.4rem;
+  animation: fade-in 0.25s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.profile-line {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.list {
+  list-style: none;
+  counter-reset: row;
+  margin: 0;
+  padding: 0;
+}
+
+.list li {
+  counter-increment: row;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.55rem 0.1rem;
+  font-size: 0.92rem;
+  border-bottom: 1px solid var(--border);
+  animation: list-row-in 0.3s ease both;
+}
+
+/* Stagger each row slightly so a freshly-loaded (or skeleton) list feels
+   like it's cascading in rather than popping all at once. */
+.list li:nth-child(1) { animation-delay: 0ms; }
+.list li:nth-child(2) { animation-delay: 25ms; }
+.list li:nth-child(3) { animation-delay: 50ms; }
+.list li:nth-child(4) { animation-delay: 75ms; }
+.list li:nth-child(5) { animation-delay: 100ms; }
+.list li:nth-child(6) { animation-delay: 125ms; }
+.list li:nth-child(7) { animation-delay: 150ms; }
+.list li:nth-child(8) { animation-delay: 175ms; }
+.list li:nth-child(9) { animation-delay: 200ms; }
+.list li:nth-child(10) { animation-delay: 225ms; }
+
+@keyframes list-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.list li:last-child { border-bottom: none; }
+
+.list li > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Overrides the generic "last child" ellipsis rule above — the
+   time-played label is short and shouldn't shrink to nothing or truncate. */
+.track-time {
+  flex: none;
+  min-width: auto;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.tracks-lastfm-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.lastfm-disclaimer {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: center;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.artist-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.thumb--round {
+  border-radius: 50%;
+}
+
+.thumb--empty {
+  display: block;
+  border: 1px solid var(--border);
+}
+
+/* -------------------------------------------------------------------- */
+/* Top Tracks row — rank, cover, track/artist, hours listened           */
+/* -------------------------------------------------------------------- */
+
+.list--tracks li {
+  gap: 0.75rem;
+}
+
+.rank {
+  flex: none;
+  width: 1.6em;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.list--tracks li:hover .rank {
+  color: var(--green);
+}
+
+.track-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.track-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-artist {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------- */
+/* Web player transport                                                 */
+/* -------------------------------------------------------------------- */
+
+.transport {
+  display: flex;
+  flex-direction: column;   
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+}
+
+.player-buttons {
+  display: flex;
+  flex-direction: row;      /* przyciski obok siebie */
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;                /* odstęp między przyciskami */
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--text-dim);
+}
+
+.icon-btn:hover { background: var(--border); }
+.icon-btn:hover svg { fill: var(--text); }
+.icon-btn:active { transform: scale(0.94); }
+
+.icon-btn--primary {
+  width: 56px;
+  height: 56px;
+  background: var(--green);
+}
+
+#song-name {
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 14px;
+
+  background-color: #111;        /* same dark background */
+  color: #fff;                   /* white text */
+  border: 0.2px solid #272727;     /* green accent border */
+  border-radius: 8px;            /* rounded like your tabs */
+
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#song-name::placeholder {
+  color: #aaa;                   /* subtle placeholder */
+}
+
+#song-name:focus {
+  border-color: var(--green);         /* lighter green on focus */
+  box-shadow: 0 0 9px rgb(22, 126, 88);
+}
+
+
+.icon-btn--primary svg { fill: var(--bg); }
+.icon-btn--primary:hover { background: var(--green); opacity: 0.88; }
+
+.find-btn {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 0.6rem;
+  padding: 0.65rem 1rem;
+
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 700;
+
+  color: var(--bg);
+  background: var(--green);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.find-btn:hover:not(:disabled) { opacity: 0.88; }
+.find-btn:active:not(:disabled) { transform: scale(0.98); }
+
+.find-btn:disabled {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+/* -------------------------------------------------------------------- */
+/* Song search + autocomplete dropdown                                  */
+/* -------------------------------------------------------------------- */
+
+.song-search {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+}
+
+.song-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+
+  max-height: 280px;
+  overflow-y: auto;
+
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 0.35rem;
+}
+
+.song-results:empty {
+  display: none;
+}
+
+.song-result {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.5rem 0.55rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.song-result:hover,
+.song-result:focus-visible {
+  background: var(--border);
+  outline: none;
+}
+
+.song-result__cover {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.song-result__cover--empty {
+  display: block;
+  border: 1px solid var(--border);
+}
+
+.song-result__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.song-result__name {
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-result__artist {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-results__message {
+  padding: 0.6rem 0.55rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+/* -------------------------------------------------------------------- */
+/* Selected / now-playing song                                         */
+/* -------------------------------------------------------------------- */
+
+.selected-song {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 360px;
+  padding: 0.75rem 0.9rem;
+
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.selected-cover {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface);
+  visibility: hidden;
+}
+
+#selected-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#selected-artist {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.player-status {
+  margin: -0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-align: center;
+  min-height: 1.1em;
+}
+
+.player-status--error {
+  color: #f87171;
+}
+
+/* -------------------------------------------------------------------- */
+/* Logged-out content lock                                               */
+/* -------------------------------------------------------------------- */
+
+.content {
+  position: relative;
+}
+
+.main-content--locked > .tab-panel {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}
+
+.login-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  pointer-events: auto;
+}
+
+.login-overlay__message {
+  padding: 0.9rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(18, 21, 18, 0.94);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+}
+
+/* -------------------------------------------------------------------- */
+/* Similar Songs — coming soon                                           */
+/* -------------------------------------------------------------------- */
+
+.feature-soon {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.feature-soon p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Skeleton loader */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.08),
+    transparent
+  );
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.55rem 0.1rem;
+}
+
+.skeleton-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+}
+
+.skeleton-thumb--round {
+  border-radius: 50%;
+}
+
+.skeleton-text {
+  flex: 1;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+/* -------------------------------------------------------------------- */
+/* Last.fm — Listening Insights (profile tab)                           */
+/* -------------------------------------------------------------------- */
+
+.lastfm[hidden] {
+  display: none;
+}
+
+.lastfm {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.lastfm__header {
+  margin-bottom: 1rem;
+}
+
+.lastfm__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.lastfm__connect-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+.lastfm__connect-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lastfm__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.8rem;
+  background: #111;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lastfm__input::placeholder {
+  color: #aaa;
+}
+
+.lastfm__input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 9px rgb(22, 126, 88);
+}
+
+.lastfm__connect-btn {
+  flex: none;
+  padding: 0.55rem 1.1rem;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--green);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.lastfm__connect-btn:hover:not(:disabled) { opacity: 0.88; }
+.lastfm__connect-btn:active:not(:disabled) { transform: scale(0.98); }
+.lastfm__connect-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lastfm__error {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  color: #f87171;
+}
+
+.lastfm__genres {
+  margin-bottom: 1rem;
+}
+
+.lastfm__label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.lastfm__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lastfm__chip {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.lastfm__chip--primary {
+  color: var(--bg);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.lastfm__time-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.lastfm__time-card {
+  padding: 0.85rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.lastfm__time-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.lastfm__time-value {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1.3;
+}
+
+@media (max-width: 420px) {
+  .lastfm__time-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lastfm__fun {
+  margin-bottom: 1rem;
+}
+
+.lastfm__fun-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.lastfm__fun-list li {
+  padding: 0.6rem 0.8rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.lastfm__unlink {
+  margin-top: 1rem;
+  font-family: var(--font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.lastfm__unlink:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.lastfm__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.lastfm__status {
+  min-height: 1.1em;
+  margin: 0.75rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+}
+
+.lastfm__status--error {
+  color: #f87171;
+}

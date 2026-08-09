@@ -1,0 +1,93 @@
+/* ==========================================================================
+   TABS — simple pill segmented control
+   ========================================================================== */
+
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  flex: 1 0 auto;
+  white-space: nowrap;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--bg);
+  background: var(--green);
+}
+
+/* -------------------------------------------------------------------- */
+/* Panel transition                                                     */
+/* -------------------------------------------------------------------- */
+
+.tab-panel {
+  animation: fade-in 0.25s ease;
+}
+
+@media (max-width: 420px) {
+  .tab-btn {
+    font-size: 0.76rem;
+    padding: 0.45rem 0.7rem;
+  }
+}
+
+/* -------------------------------------------------------------------- */
+/* Range sub-tabs — time filter inside Top Tracks (Month / 6mo / Year)  */
+/* -------------------------------------------------------------------- */
+
+.range-tabs {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.2rem;
+  margin-bottom: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.range-btn {
+  font-family: var(--font);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.range-btn:hover {
+  color: var(--text);
+}
+
+.range-btn.active {
+  color: var(--bg);
+  background: var(--green);
+}

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Streamifed</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tabs.css">
+  <link rel="stylesheet" href="recap.css">
+</head>
+
+<body>
+  <div class="app">
+
+    <header class="topbar">
+      <h1 class="logo">Stream<span class="accent">ifed</span></h1>
+      <a class="login-btn" id="login-btn" href="/login">Log in</a>
+      <button class="user-chip" id="user-chip" type="button" hidden>
+        <img id="user-avatar" class="user-chip__avatar" alt="" />
+        <span id="user-name" class="user-chip__name"></span>
+      </button>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn active" data-tab="home" role="tab" aria-selected="true"
+        aria-controls="tab-home">Home</button>
+      <button class="tab-btn" data-tab="tracks" role="tab" aria-selected="false" aria-controls="tab-tracks">Top
+        Tracks</button>
+      <button class="tab-btn" data-tab="artists" role="tab" aria-selected="false" aria-controls="tab-artists">Top
+        Artists</button>
+      <button class="tab-btn" data-tab="recent" role="tab" aria-selected="false" aria-controls="tab-recent">Recently
+        Played</button>
+      <button class="tab-btn" data-tab="player" role="tab" aria-selected="false" aria-controls="tab-player">Similar
+        Songs</button>
+    </nav>
+
+    <main class="content" id="main-content">
+      <div id="login-overlay" class="login-overlay" hidden>
+        <div class="login-overlay__message">You need to log in first</div>
+      </div>
+
+      <section id="tab-profile" class="panel tab-panel" data-tab-panel="profile" role="tabpanel" hidden>
+        <div id="profile-card" class="profile-card" hidden>
+          <img id="profile-avatar" class="profile-card__avatar" alt="" />
+          <div class="profile-card__info">
+            <p id="profile-name" class="profile-card__name"></p>
+            <p id="profile-email" class="profile-card__email"></p>
+          </div>
+          <a class="logout-btn" href="/logout">Log off</a>
+        </div>
+        <p id="profile" class="profile-line">Loading…</p>
+
+        <div id="lastfm-section" class="lastfm" hidden>
+          <div class="lastfm__header">
+            <h2 class="lastfm__title">Listening Insights</h2>
+          </div>
+
+          <div id="lastfm-connect" class="lastfm__connect" hidden>
+            <p class="lastfm__connect-text">Connect your Last.fm account to see your all-time favorite genres.</p>
+            <form id="lastfm-connect-form" class="lastfm__connect-form">
+              <input id="lastfm-username-input" class="lastfm__input" type="text" placeholder="Last.fm username" autocomplete="off" />
+              <button type="submit" class="lastfm__connect-btn">Connect</button>
+            </form>
+            <p id="lastfm-connect-error" class="lastfm__error" hidden></p>
+          </div>
+
+          <div id="lastfm-stats" class="lastfm__stats" hidden>
+            <div class="lastfm__genres">
+              <p class="lastfm__label">Favorite genres (all time)</p>
+              <div id="lastfm-genre-chips" class="lastfm__chips"></div>
+            </div>
+
+            <div class="lastfm__time-grid">
+              <div class="lastfm__time-card">
+                <p class="lastfm__time-label">This week</p>
+                <p id="lastfm-time-week" class="lastfm__time-value">—</p>
+              </div>
+              <div class="lastfm__time-card">
+                <p class="lastfm__time-label">This month</p>
+                <p id="lastfm-time-month" class="lastfm__time-value">—</p>
+              </div>
+              <div class="lastfm__time-card">
+                <p class="lastfm__time-label">This year</p>
+                <p id="lastfm-time-year" class="lastfm__time-value">—</p>
+              </div>
+            </div>
+
+            <div class="lastfm__fun">
+              <p class="lastfm__label">Fun stats</p>
+              <ul id="lastfm-fun-list" class="lastfm__fun-list"></ul>
+            </div>
+
+            <button id="lastfm-unlink" class="lastfm__unlink" type="button">Disconnect Last.fm</button>
+          </div>
+
+          <div id="lastfm-skeleton" class="lastfm__skeleton" hidden>
+            <div class="skeleton-row"><span class="skeleton skeleton-thumb"></span><span class="skeleton skeleton-text"></span></div>
+            <div class="skeleton-row"><span class="skeleton skeleton-thumb"></span><span class="skeleton skeleton-text"></span></div>
+            <div class="skeleton-row"><span class="skeleton skeleton-thumb"></span><span class="skeleton skeleton-text"></span></div>
+          </div>
+
+          <p id="lastfm-status" class="lastfm__status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section id="tab-home" class="panel tab-panel" data-tab-panel="home" role="tabpanel">
+        <div class="home-grid">
+          <button id="recap-tile" class="tile" type="button" aria-haspopup="dialog" aria-controls="recap-modal">
+            <svg class="tile__icon" viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="4" y="26" width="12" height="16" rx="2" />
+              <rect x="18" y="16" width="12" height="26" rx="2" />
+              <rect x="32" y="30" width="12" height="12" rx="2" />
+            </svg>
+            <span class="tile__label">Monthly Recap</span>
+          </button>
+
+          <div class="tile tile--soon" aria-disabled="true">
+            <svg class="tile__icon" viewBox="0 0 48 48" aria-hidden="true">
+              <circle cx="14" cy="24" r="3.5" />
+              <circle cx="24" cy="24" r="3.5" />
+              <circle cx="34" cy="24" r="3.5" />
+            </svg>
+            <span class="tile__label">Coming soon…</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-tracks" class="panel tab-panel" data-tab-panel="tracks" role="tabpanel" hidden>
+        <div class="range-tabs" role="tablist" aria-label="Time range">
+          <button class="range-btn active" data-range="short_term" role="tab" aria-selected="true">Month</button>
+          <button class="range-btn" data-range="medium_term" role="tab" aria-selected="false">6 Months</button>
+          <button class="range-btn" data-range="long_term" role="tab" aria-selected="false">Year</button>
+        </div>
+        <ol id="tracks" class="list list--tracks"></ol>
+        <p id="tracks-lastfm-note" class="tracks-lastfm-note" hidden>Log in with Last.fm on the Profile tab to see time played.</p>
+        <p id="tracks-lastfm-disclaimer" class="lastfm-disclaimer" hidden>Time played is an estimate and might be inaccurate — take it with a grain of salt.</p>
+      </section>
+
+      <section id="tab-artists" class="panel tab-panel" data-tab-panel="artists" role="tabpanel" hidden>
+        <div class="range-tabs" role="tablist" aria-label="Time range">
+          <button class="range-btn active" data-range="short_term" role="tab" aria-selected="true">Month</button>
+          <button class="range-btn" data-range="medium_term" role="tab" aria-selected="false">6 Months</button>
+          <button class="range-btn" data-range="long_term" role="tab" aria-selected="false">Year</button>
+        </div>
+        <ol id="artists" class="list"></ol>
+        <p id="artists-lastfm-note" class="tracks-lastfm-note" hidden>Log in with Last.fm on the Profile tab to see time played.</p>
+        <p id="artists-lastfm-disclaimer" class="lastfm-disclaimer" hidden>Time played is an estimate and might be inaccurate — take it with a grain of salt.</p>
+      </section>
+
+      <section id="tab-recent" class="panel tab-panel" data-tab-panel="recent" role="tabpanel" hidden>
+        <ol id="recent" class="list"></ol>
+      </section>
+
+      <section id="tab-player" class="panel tab-panel" data-tab-panel="player" role="tabpanel" hidden>
+        <div class="feature-soon">
+          <p>Feature coming soon...</p>
+        </div>
+      </section>
+
+
+    </main>
+  </div>
+
+  <div id="recap-modal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Monthly recap">
+      <button class="modal__close" type="button" data-close aria-label="Close">✕</button>
+
+      <div class="recap__preview-frame">
+        <canvas id="recap-canvas" width="1080" height="1920" hidden></canvas>
+        <p id="recap-empty" class="recap__empty" hidden></p>
+
+        <div id="recap-skeleton" class="recap__skeleton">
+          <span class="skeleton recap__skeleton-bar recap__skeleton-bar--title"></span>
+          <span class="skeleton recap__skeleton-bar recap__skeleton-bar--sub"></span>
+
+          <span class="skeleton recap__skeleton-bar recap__skeleton-bar--label"></span>
+          <div class="recap__skeleton-row"><span class="skeleton recap__skeleton-thumb recap__skeleton-thumb--round"></span><span class="skeleton recap__skeleton-line"></span></div>
+          <div class="recap__skeleton-row"><span class="skeleton recap__skeleton-thumb recap__skeleton-thumb--round"></span><span class="skeleton recap__skeleton-line"></span></div>
+          <div class="recap__skeleton-row"><span class="skeleton recap__skeleton-thumb recap__skeleton-thumb--round"></span><span class="skeleton recap__skeleton-line"></span></div>
+
+          <span class="skeleton recap__skeleton-bar recap__skeleton-bar--label"></span>
+          <div class="recap__skeleton-row"><span class="skeleton recap__skeleton-thumb"></span><span class="skeleton recap__skeleton-line"></span></div>
+          <div class="recap__skeleton-row"><span class="skeleton recap__skeleton-thumb"></span><span class="skeleton recap__skeleton-line"></span></div>
+        </div>
+      </div>
+
+      <p id="recap-status" class="recap__status" aria-live="polite"></p>
+
+      <div class="modal__actions">
+        <div class="circle-action">
+          <button id="recap-download" class="circle-btn" type="button" disabled aria-label="Save to gallery">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3v12M8 11l4 4 4-4M5 19h14" />
+            </svg>
+          </button>
+          <span class="circle-action__label">Save</span>
+        </div>
+        <div class="circle-action">
+          <button id="recap-share" class="circle-btn" type="button" disabled aria-label="Share to Story">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 16V4M8 8l4-4 4 4M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
+            </svg>
+          </button>
+          <span class="circle-action__label">Share</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <script>
+      async function load() {
+        // smallest available image keeps thumbnails fast to load
+        const thumbOf = images => (images && images.length
+          ? images[images.length - 1].url
+          : null);
+
+        try {
+          const me = await fetch('/api/me').then(r => r.json());
+          const avatarUrl = thumbOf(me.images);
+
+          // swap the login button for the user's avatar + name
+          document.getElementById('login-btn').hidden = true;
+          const chip = document.getElementById('user-chip');
+          const chipAvatar = document.getElementById('user-avatar');
+          chipAvatar.src = avatarUrl || '';
+          chipAvatar.alt = me.display_name || 'Profile';
+          chipAvatar.style.visibility = avatarUrl ? 'visible' : 'hidden';
+          document.getElementById('user-name').textContent = me.display_name;
+          chip.hidden = false;
+          chip.addEventListener('click', () => window.activateTab('profile'));
+
+          // fill in the profile card
+          document.getElementById('profile').hidden = true;
+          const card = document.getElementById('profile-card');
+          const cardAvatar = document.getElementById('profile-avatar');
+          cardAvatar.src = avatarUrl || '';
+          cardAvatar.alt = me.display_name || 'Profile';
+          cardAvatar.style.visibility = avatarUrl ? 'visible' : 'hidden';
+          document.getElementById('profile-name').textContent = me.display_name;
+          document.getElementById('profile-email').textContent = me.email;
+          card.hidden = false;
+
+          function rowWithArt(imgUrl, altText, label, circular) {
+            const li = document.createElement('li');
+
+            if (imgUrl) {
+              const img = document.createElement('img');
+              img.src = imgUrl;
+              img.alt = altText;
+              img.loading = 'lazy';
+              img.className = circular ? 'thumb thumb--round' : 'thumb';
+              li.appendChild(img);
+            } else {
+              const placeholder = document.createElement('span');
+              placeholder.className = circular ? 'thumb thumb--round thumb--empty' : 'thumb thumb--empty';
+              li.appendChild(placeholder);
+            }
+
+            const text = document.createElement('span');
+            text.textContent = label;
+            li.appendChild(text);
+
+            return li;
+          }
+
+          function trackRow(track, index) {
+            const li = document.createElement('li');
+
+            const rank = document.createElement('span');
+            rank.className = 'rank';
+            rank.textContent = String(index + 1).padStart(2, '0');
+            li.appendChild(rank);
+
+            const imgUrl = thumbOf(track.album?.images);
+            if (imgUrl) {
+              const img = document.createElement('img');
+              img.src = imgUrl;
+              img.alt = track.name;
+              img.loading = 'lazy';
+              img.className = 'thumb';
+              li.appendChild(img);
+            } else {
+              const placeholder = document.createElement('span');
+              placeholder.className = 'thumb thumb--empty';
+              li.appendChild(placeholder);
+            }
+
+            const info = document.createElement('span');
+            info.className = 'track-info';
+            const name = document.createElement('span');
+            name.className = 'track-name';
+            name.textContent = track.name;
+            const artist = document.createElement('span');
+            artist.className = 'track-artist';
+            artist.textContent = (track.artists || []).map(a => a.name).join(', ');
+            info.appendChild(name);
+            info.appendChild(artist);
+            li.appendChild(info);
+
+            const time = document.createElement('span');
+            time.className = 'track-time';
+            time.dataset.trackIndex = String(index);
+            li.appendChild(time);
+
+            return li;
+          }
+
+          function artistRow(artist, index) {
+            const li = document.createElement('li');
+
+            const rank = document.createElement('span');
+            rank.className = 'rank';
+            rank.textContent = String(index + 1).padStart(2, '0');
+            li.appendChild(rank);
+
+            const imgUrl = thumbOf(artist.images);
+            if (imgUrl) {
+              const img = document.createElement('img');
+              img.src = imgUrl;
+              img.alt = artist.name;
+              img.loading = 'lazy';
+              img.className = 'thumb thumb--round';
+              li.appendChild(img);
+            } else {
+              const placeholder = document.createElement('span');
+              placeholder.className = 'thumb thumb--round thumb--empty';
+              li.appendChild(placeholder);
+            }
+
+            const name = document.createElement('span');
+            name.className = 'artist-name';
+            name.textContent = artist.name;
+            li.appendChild(name);
+
+            const time = document.createElement('span');
+            time.className = 'track-time';
+            time.dataset.artistIndex = String(index);
+            li.appendChild(time);
+
+            return li;
+          }
+
+          function skeletonRows(container, count, round) {
+            container.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+              const li = document.createElement('li');
+              li.className = 'skeleton-row';
+
+              const thumb = document.createElement('span');
+              thumb.className = 'skeleton skeleton-thumb' + (round ? ' skeleton-thumb--round' : '');
+              li.appendChild(thumb);
+
+              const text = document.createElement('span');
+              text.className = 'skeleton skeleton-text';
+              li.appendChild(text);
+
+              container.appendChild(li);
+            }
+          }
+          let lastfmLinkedCache = null;
+
+          window.addEventListener('lastfm-status-changed', () => {
+            lastfmLinkedCache = null;
+          });
+
+          async function isLastfmLinked() {
+            if (lastfmLinkedCache !== null) return lastfmLinkedCache;
+            try {
+              const res = await fetch('/api/lastfm/status');
+              const data = res.ok ? await res.json() : { linked: false };
+              lastfmLinkedCache = !!data.linked;
+            } catch (e) {
+              lastfmLinkedCache = false;
+            }
+            return lastfmLinkedCache;
+          }
+
+          async function loadTracks(range) {
+            const t = document.getElementById('tracks');
+            skeletonRows(t, 10, false);
+            const tracks = await fetch(`/api/top-tracks?time_range=${range}`, { cache: 'no-store' }).then(r => r.json());
+            t.innerHTML = '';
+            tracks.forEach((track, i) => t.appendChild(trackRow(track, i)));
+            attachLastfmTimes(tracks, range);
+          }
+
+          // "1h 12m" / "45m" / "—" for the small time-played label on the
+          function formatShortTime(minutes) {
+            if (minutes == null) return '—';
+            const m = Math.round(minutes);
+            if (m < 60) return `${m}m`;
+            const h = Math.floor(m / 60);
+            const rem = m % 60;
+            return rem ? `${h}h ${rem}m` : `${h}h`;
+          }
+
+          async function attachLastfmTimes(tracks, range) {
+            const note = document.getElementById('tracks-lastfm-note');
+            const disclaimer = document.getElementById('tracks-lastfm-disclaimer');
+
+            const linked = await isLastfmLinked();
+            if (!linked) {
+              note.hidden = false;
+              disclaimer.hidden = true;
+              return;
+            }
+            note.hidden = true;
+            disclaimer.hidden = false;
+
+            document.querySelectorAll('#tracks .track-time').forEach(el => { el.textContent = '···'; });
+
+            try {
+              const payload = tracks.map(track => ({
+                name: track.name,
+                artist: (track.artists || [])[0]?.name || ''
+              }));
+
+              const timesRes = await fetch('/api/lastfm/track-times', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tracks: payload, range })
+              });
+              if (!timesRes.ok) return;
+
+              const data = await timesRes.json();
+              data.times.forEach((minutes, i) => {
+                const el = document.querySelector(`#tracks .track-time[data-track-index="${i}"]`);
+                if (el) el.textContent = formatShortTime(minutes);
+              });
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          async function attachLastfmArtistTimes(artists, range) {
+            const note = document.getElementById('artists-lastfm-note');
+            const disclaimer = document.getElementById('artists-lastfm-disclaimer');
+
+            const linked = await isLastfmLinked();
+            if (!linked) {
+              note.hidden = false;
+              disclaimer.hidden = true;
+              return;
+            }
+            note.hidden = true;
+            disclaimer.hidden = false;
+
+            document.querySelectorAll('#artists .track-time').forEach(el => { el.textContent = '···'; });
+
+            try {
+              const payload = artists.map(artist => ({ id: artist.id, name: artist.name }));
+
+              const timesRes = await fetch('/api/lastfm/artist-times', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ artists: payload, range })
+              });
+              if (!timesRes.ok) return;
+
+              const data = await timesRes.json();
+              data.times.forEach((minutes, i) => {
+                const el = document.querySelector(`#artists .track-time[data-artist-index="${i}"]`);
+                if (el) el.textContent = formatShortTime(minutes);
+              });
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          async function loadArtists(range) {
+            const a = document.getElementById('artists');
+            skeletonRows(a, 10, true);
+            const artists = await fetch(`/api/top-artists?time_range=${range}`, { cache: 'no-store' }).then(r => r.json());
+            a.innerHTML = '';
+            artists.forEach((artist, i) => a.appendChild(artistRow(artist, i)));
+            attachLastfmArtistTimes(artists, range);
+          }
+
+          function wireRangeTabs(panelId, onChange) {
+            const panel = document.getElementById(panelId);
+            const buttons = panel.querySelectorAll('.range-btn');
+            buttons.forEach(btn => {
+              btn.addEventListener('click', () => {
+                buttons.forEach(b => {
+                  b.classList.toggle('active', b === btn);
+                  b.setAttribute('aria-selected', String(b === btn));
+                });
+                onChange(btn.dataset.range);
+              });
+            });
+          }
+
+          wireRangeTabs('tab-tracks', loadTracks);
+          wireRangeTabs('tab-artists', loadArtists);
+
+          await loadTracks('short_term');
+          await loadArtists('short_term');
+
+          const recent = await fetch('/api/recent').then(r => r.json());
+          const r = document.getElementById('recent');
+          recent.forEach(item => {
+            const label = `${item.track.name} — ${item.track.artists.map(a => a.name).join(', ')}`;
+            r.appendChild(rowWithArt(thumbOf(item.track.album?.images), item.track.name, label, false));
+          });
+        } catch (e) {
+          // Not logged in (or the session/token is invalid).
+          document.getElementById('login-btn').hidden = false;
+          document.getElementById('user-chip').hidden = true;
+          document.getElementById('profile-card').hidden = true;
+          document.getElementById('profile').hidden = false;
+          document.getElementById('profile').textContent = 'Not logged in';
+
+          document.getElementById('main-content').classList.add('main-content--locked');
+          document.getElementById('login-overlay').hidden = false;
+        }
+      }
+
+      load();
+  </script>
+
+  <a href="https://www.buymeacoffee.com/saitsune" target="_blank" rel="noopener" class="coffee-link">☕ Buy me a coffee</a>
+
+  <script src="player.js"></script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <script src="tabs.js"></script>
+  <script src="recap.js"></script>
+  <script src="lastfm.js"></script>
+</body>
+
+</html>
