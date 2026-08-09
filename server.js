@@ -4,6 +4,7 @@ const session = require('express-session');
 const SpotifyWebApi = require('spotify-web-api-node');
 const path = require('path');
 const fs = require('fs');
+const { Pool } = require('pg');
 
 const REQUIRED_ENV = [
   'SESSION_SECRET',
@@ -25,14 +26,41 @@ if (!LASTFM_API_KEY) {
   console.warn('LASTFM_API_KEY is not set — /api/lastfm/* routes will return errors until it is configured.');
 }
 
-// Persists Last.fm usernames keyed by Spotify user ID, so a person only
-// has to link Last.fm once — not once per 7-day session. A JSON file is
-// enough for a single-instance app; swap for a real database if this ever
-// runs across multiple server instances.
+// Persists Last.fm usernames keyed by Spotify user ID, so a person only has
+// to link Last.fm once — not once per 7-day session.
+//
+// Two backends, chosen automatically:
+//  - DATABASE_URL set (e.g. Render Postgres)  -> Postgres, survives deploys/restarts
+//  - DATABASE_URL not set (local dev default) -> a JSON file on disk
+//
+// The JSON file is fine for local development, but on most free hosts
+// (including Render's free web service tier) the filesystem is wiped on
+// every deploy and every sleep/wake cycle — so production should always
+// have DATABASE_URL set.
 const DATA_DIR = path.join(__dirname, 'data');
 const LASTFM_LINKS_FILE = path.join(DATA_DIR, 'lastfm-links.json');
+const usingPostgres = !!process.env.DATABASE_URL;
 
-function loadLastfmLinks() {
+const pool = usingPostgres
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      // Render's managed Postgres requires SSL but uses a self-signed
+      // cert chain that Node won't validate by default.
+      ssl: { rejectUnauthorized: false }
+    })
+  : null;
+
+async function initLastfmStore() {
+  if (!usingPostgres) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS lastfm_links (
+      spotify_user_id TEXT PRIMARY KEY,
+      username TEXT NOT NULL
+    )
+  `);
+}
+
+function loadLastfmLinksFile() {
   try {
     return JSON.parse(fs.readFileSync(LASTFM_LINKS_FILE, 'utf8'));
   } catch (err) {
@@ -43,7 +71,7 @@ function loadLastfmLinks() {
   }
 }
 
-function saveLastfmLinks(links) {
+function saveLastfmLinksFile(links) {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(LASTFM_LINKS_FILE, JSON.stringify(links, null, 2));
@@ -52,8 +80,43 @@ function saveLastfmLinks(links) {
   }
 }
 
-// Loaded once at startup, mutated + persisted on every link/unlink.
-let lastfmLinks = loadLastfmLinks();
+// In-memory cache used only by the JSON-file backend, loaded once at
+// startup. The Postgres backend ignores this entirely and hits the DB
+// directly on every call.
+let jsonLinksCache = usingPostgres ? null : loadLastfmLinksFile();
+
+async function getLastfmUsername(spotifyUserId) {
+  if (usingPostgres) {
+    const { rows } = await pool.query(
+      'SELECT username FROM lastfm_links WHERE spotify_user_id = $1',
+      [spotifyUserId]
+    );
+    return rows[0]?.username || null;
+  }
+  return jsonLinksCache[spotifyUserId] || null;
+}
+
+async function setLastfmUsername(spotifyUserId, username) {
+  if (usingPostgres) {
+    await pool.query(
+      `INSERT INTO lastfm_links (spotify_user_id, username) VALUES ($1, $2)
+       ON CONFLICT (spotify_user_id) DO UPDATE SET username = EXCLUDED.username`,
+      [spotifyUserId, username]
+    );
+    return;
+  }
+  jsonLinksCache[spotifyUserId] = username;
+  saveLastfmLinksFile(jsonLinksCache);
+}
+
+async function deleteLastfmUsername(spotifyUserId) {
+  if (usingPostgres) {
+    await pool.query('DELETE FROM lastfm_links WHERE spotify_user_id = $1', [spotifyUserId]);
+    return;
+  }
+  delete jsonLinksCache[spotifyUserId];
+  saveLastfmLinksFile(jsonLinksCache);
+}
 
 // Thin wrapper around Last.fm's REST API (method + params -> parsed JSON).
 // Last.fm returns HTTP 200 with an `error` field for most failures (bad
@@ -258,7 +321,7 @@ app.use(express.json());
 
 app.get('/api/lastfm/status', auth, asyncHandler(async (req, res) => {
   const spotifyUserId = await getSpotifyUserId(req);
-  const username = lastfmLinks[spotifyUserId] || null;
+  const username = await getLastfmUsername(spotifyUserId);
   res.json({ linked: !!username, username });
 }));
 
@@ -274,22 +337,20 @@ app.post('/api/lastfm/link', auth, asyncHandler(async (req, res) => {
   await lastfmRequest({ method: 'user.getinfo', user: username });
 
   const spotifyUserId = await getSpotifyUserId(req);
-  lastfmLinks[spotifyUserId] = username;
-  saveLastfmLinks(lastfmLinks);
+  await setLastfmUsername(spotifyUserId, username);
 
   res.json({ linked: true, username });
 }));
 
 app.post('/api/lastfm/unlink', auth, asyncHandler(async (req, res) => {
   const spotifyUserId = await getSpotifyUserId(req);
-  delete lastfmLinks[spotifyUserId];
-  saveLastfmLinks(lastfmLinks);
+  await deleteLastfmUsername(spotifyUserId);
   res.json({ linked: false });
 }));
 
 app.get('/api/lastfm/stats', auth, asyncHandler(async (req, res) => {
   const spotifyUserId = await getSpotifyUserId(req);
-  const username = lastfmLinks[spotifyUserId];
+  const username = await getLastfmUsername(spotifyUserId);
 
   if (!username) {
     return res.status(400).json({ error: 'No Last.fm account linked yet' });
@@ -402,7 +463,7 @@ async function estimateMinutesForPeriod(username, period) {
 
 app.get('/api/lastfm/time-summary', auth, asyncHandler(async (req, res) => {
   const spotifyUserId = await getSpotifyUserId(req);
-  const username = lastfmLinks[spotifyUserId];
+  const username = await getLastfmUsername(spotifyUserId);
 
   if (!username) {
     return res.status(400).json({ error: 'No Last.fm account linked yet' });
@@ -525,7 +586,7 @@ async function getLastfmArtistPlaysForPeriod(username, period) {
 // matched at all (e.g. missing name/artist); a real period-mismatch is 0.
 app.post('/api/lastfm/track-times', auth, asyncHandler(async (req, res) => {
   const spotifyUserId = await getSpotifyUserId(req);
-  const username = lastfmLinks[spotifyUserId];
+  const username = await getLastfmUsername(spotifyUserId);
 
   if (!username) {
     return res.status(400).json({ error: 'No Last.fm account linked yet' });
@@ -582,7 +643,7 @@ app.post('/api/lastfm/track-times', auth, asyncHandler(async (req, res) => {
 // they've scrobbled by that artist.
 app.post('/api/lastfm/artist-times', auth, asyncHandler(async (req, res) => {
   const spotifyUserId = await getSpotifyUserId(req);
-  const username = lastfmLinks[spotifyUserId];
+  const username = await getLastfmUsername(spotifyUserId);
 
   if (!username) {
     return res.status(400).json({ error: 'No Last.fm account linked yet' });
@@ -821,6 +882,13 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: spotifyMessage || 'Something went wrong. Please try again.' });
 });
 
-app.listen(3000, () => {
-  console.log('Running on http://127.0.0.1:3000');
-});
+initLastfmStore()
+  .then(() => {
+    app.listen(process.env.PORT || 3000, () => {
+      console.log(`Running on port ${process.env.PORT || 3000} (Last.fm storage: ${usingPostgres ? 'Postgres' : 'local JSON file'})`);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to initialize Last.fm storage:', err);
+    process.exit(1);
+  });
