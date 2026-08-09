@@ -150,6 +150,11 @@ async function lastfmRequest(params) {
 
 const app = express();
 
+// Render (and most PaaS hosts) sit behind a reverse proxy that terminates
+// HTTPS for you — the request Express actually sees is plain HTTP from the
+// proxy. Without this, Express thinks the connection isn't secure, so the
+// `secure: true` cookie below never gets set, no session survives the
+// redirect back from Spotify, and login just loops back to itself.
 app.set('trust proxy', 1);
 
 app.use(session({
@@ -195,11 +200,29 @@ app.get('/login', (req, res) => {
   res.redirect(authorizeURL);
 });
 
+// Spotify/network errors don't always have a plain string .message — some
+// come back as nested objects (e.g. { status, body: { error, error_description } }).
+// This pulls out the most useful readable string from whatever shape we get,
+// instead of accidentally printing "[object Object]" to the user.
+function describeError(err) {
+  if (typeof err === 'string') return err;
+  if (err?.body?.error_description) return err.body.error_description;
+  if (err?.body?.error) {
+    return typeof err.body.error === 'string' ? err.body.error : JSON.stringify(err.body.error);
+  }
+  if (typeof err?.message === 'string' && err.message) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 app.get('/callback', asyncHandler(async (req, res) => {
   const { code, error } = req.query;
 
   if (error) {
-    return res.status(400).send(`Auth error: ${error}`);
+    return res.status(400).send(`Auth error: ${describeError(error)}`);
   }
 
   const client = createSpotifyClient();
@@ -219,8 +242,11 @@ app.get('/callback', asyncHandler(async (req, res) => {
 
     res.redirect('/');
   } catch (err) {
-    console.error('Authorization code grant failed:', err.message);
-    res.status(400).send('Auth error: ' + err.message);
+    // Log the raw error server-side (visible in Render's Logs tab) so we
+    // can see the real cause, even though the user only sees a short
+    // readable message.
+    console.error('Authorization code grant failed:', err);
+    res.status(400).send('Auth error: ' + describeError(err));
   }
 }));
 
