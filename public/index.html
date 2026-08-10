@@ -15,12 +15,16 @@
 
     <header class="topbar">
       <h1 class="logo">Stream<span class="accent">ifed</span></h1>
-      <a class="login-btn" id="login-btn" href="/login">Log in</a>
+      <form id="connect-form" class="lastfm__connect-form topbar-connect" hidden>
+        <input id="connect-username-input" class="lastfm__input" type="text" placeholder="Last.fm username" autocomplete="off" />
+        <button type="submit" class="lastfm__connect-btn">Connect</button>
+      </form>
       <button class="user-chip" id="user-chip" type="button" hidden>
         <img id="user-avatar" class="user-chip__avatar" alt="" />
         <span id="user-name" class="user-chip__name"></span>
       </button>
     </header>
+    <p id="connect-error" class="lastfm__error topbar-connect-error" hidden></p>
 
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab-btn active" data-tab="home" role="tab" aria-selected="true"
@@ -37,7 +41,7 @@
 
     <main class="content" id="main-content">
       <div id="login-overlay" class="login-overlay" hidden>
-        <div class="login-overlay__message">You need to log in first</div>
+        <div class="login-overlay__message">Connect your Last.fm username above to see your stats</div>
       </div>
 
       <section id="tab-profile" class="panel tab-panel" data-tab-panel="profile" role="tabpanel" hidden>
@@ -47,7 +51,7 @@
             <p id="profile-name" class="profile-card__name"></p>
             <p id="profile-email" class="profile-card__email"></p>
           </div>
-          <a class="logout-btn" href="/logout">Log off</a>
+          <button id="disconnect-btn" class="logout-btn" type="button">Disconnect</button>
         </div>
         <p id="profile" class="profile-line">Loading…</p>
 
@@ -133,7 +137,6 @@
           <button class="range-btn" data-range="long_term" role="tab" aria-selected="false">Year</button>
         </div>
         <ol id="tracks" class="list list--tracks"></ol>
-        <p id="tracks-lastfm-note" class="tracks-lastfm-note" hidden>Log in with Last.fm on the Profile tab to see time played.</p>
         <p id="tracks-lastfm-disclaimer" class="lastfm-disclaimer" hidden>Time played is an estimate and might be inaccurate — take it with a grain of salt.</p>
       </section>
 
@@ -144,7 +147,6 @@
           <button class="range-btn" data-range="long_term" role="tab" aria-selected="false">Year</button>
         </div>
         <ol id="artists" class="list"></ol>
-        <p id="artists-lastfm-note" class="tracks-lastfm-note" hidden>Log in with Last.fm on the Profile tab to see time played.</p>
         <p id="artists-lastfm-disclaimer" class="lastfm-disclaimer" hidden>Time played is an estimate and might be inaccurate — take it with a grain of salt.</p>
       </section>
 
@@ -210,18 +212,73 @@
   </div>
 
     <script>
+      const connectForm = document.getElementById('connect-form');
+      const connectInput = document.getElementById('connect-username-input');
+      const connectError = document.getElementById('connect-error');
+
+      connectForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const username = connectInput.value.trim();
+        if (!username) return;
+
+        connectError.hidden = true;
+        const btn = connectForm.querySelector('button[type="submit"]');
+        btn.disabled = true;
+
+        try {
+          const res = await fetch('/api/lastfm/link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            connectError.textContent = data.error || "Couldn't find that Last.fm username.";
+            connectError.hidden = false;
+            return;
+          }
+
+          // Simplest way to get every tab to re-load with the newly linked
+          // account's data, mirroring how the old Spotify OAuth callback
+          // used to redirect back to '/' after logging in.
+          window.location.reload();
+        } catch (err) {
+          console.error(err);
+          connectError.textContent = 'Something went wrong — try again.';
+          connectError.hidden = false;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
       async function load() {
         // smallest available image keeps thumbnails fast to load
         const thumbOf = images => (images && images.length
           ? images[images.length - 1].url
           : null);
 
+        const statusRes = await fetch('/api/lastfm/status');
+        const status = statusRes.ok ? await statusRes.json() : { linked: false };
+
+        if (!status.linked) {
+          connectForm.hidden = false;
+          document.getElementById('user-chip').hidden = true;
+          document.getElementById('profile-card').hidden = true;
+          document.getElementById('main-content').classList.add('main-content--locked');
+          document.getElementById('login-overlay').hidden = false;
+          return;
+        }
+
+        connectForm.hidden = true;
+
         try {
-          const me = await fetch('/api/me').then(r => r.json());
+          const meRes = await fetch('/api/me');
+          if (!meRes.ok) throw new Error('Not linked');
+          const me = await meRes.json();
           const avatarUrl = thumbOf(me.images);
 
-          // swap the login button for the user's avatar + name
-          document.getElementById('login-btn').hidden = true;
+          // swap the connect form for the user's avatar + name
           const chip = document.getElementById('user-chip');
           const chipAvatar = document.getElementById('user-avatar');
           chipAvatar.src = avatarUrl || '';
@@ -239,8 +296,15 @@
           cardAvatar.alt = me.display_name || 'Profile';
           cardAvatar.style.visibility = avatarUrl ? 'visible' : 'hidden';
           document.getElementById('profile-name').textContent = me.display_name;
-          document.getElementById('profile-email').textContent = me.email;
+          document.getElementById('profile-email').textContent =
+            `${me.playcount.toLocaleString()} scrobbles` +
+            (me.registeredYear ? ` · on Last.fm since ${me.registeredYear}` : '');
           card.hidden = false;
+
+          document.getElementById('disconnect-btn').addEventListener('click', async () => {
+            await fetch('/api/lastfm/unlink', { method: 'POST' });
+            window.location.reload();
+          });
 
           function rowWithArt(imgUrl, altText, label, circular) {
             const li = document.createElement('li');
@@ -301,7 +365,7 @@
 
             const time = document.createElement('span');
             time.className = 'track-time';
-            time.dataset.trackIndex = String(index);
+            time.textContent = formatShortTime(track.estimatedMinutes);
             li.appendChild(time);
 
             return li;
@@ -336,7 +400,7 @@
 
             const time = document.createElement('span');
             time.className = 'track-time';
-            time.dataset.artistIndex = String(index);
+            time.textContent = formatShortTime(artist.estimatedMinutes);
             li.appendChild(time);
 
             return li;
@@ -359,34 +423,11 @@
               container.appendChild(li);
             }
           }
-          let lastfmLinkedCache = null;
-
-          window.addEventListener('lastfm-status-changed', () => {
-            lastfmLinkedCache = null;
-          });
-
-          async function isLastfmLinked() {
-            if (lastfmLinkedCache !== null) return lastfmLinkedCache;
-            try {
-              const res = await fetch('/api/lastfm/status');
-              const data = res.ok ? await res.json() : { linked: false };
-              lastfmLinkedCache = !!data.linked;
-            } catch (e) {
-              lastfmLinkedCache = false;
-            }
-            return lastfmLinkedCache;
-          }
-
-          async function loadTracks(range) {
-            const t = document.getElementById('tracks');
-            skeletonRows(t, 10, false);
-            const tracks = await fetch(`/api/top-tracks?time_range=${range}`, { cache: 'no-store' }).then(r => r.json());
-            t.innerHTML = '';
-            tracks.forEach((track, i) => t.appendChild(trackRow(track, i)));
-            attachLastfmTimes(tracks, range);
-          }
-
-          // "1h 12m" / "45m" / "—" for the small time-played label on the
+          // "1h 12m" / "45m" / "—" for the small time-played label on each row.
+          // Every top-track/top-artist response already carries its own
+          // period-scoped estimatedMinutes straight from Last.fm, so — unlike
+          // the old Spotify-backed version — there's no separate fetch needed
+          // to attach these after the fact.
           function formatShortTime(minutes) {
             if (minutes == null) return '—';
             const m = Math.round(minutes);
@@ -396,77 +437,13 @@
             return rem ? `${h}h ${rem}m` : `${h}h`;
           }
 
-          async function attachLastfmTimes(tracks, range) {
-            const note = document.getElementById('tracks-lastfm-note');
-            const disclaimer = document.getElementById('tracks-lastfm-disclaimer');
-
-            const linked = await isLastfmLinked();
-            if (!linked) {
-              note.hidden = false;
-              disclaimer.hidden = true;
-              return;
-            }
-            note.hidden = true;
-            disclaimer.hidden = false;
-
-            document.querySelectorAll('#tracks .track-time').forEach(el => { el.textContent = '···'; });
-
-            try {
-              const payload = tracks.map(track => ({
-                name: track.name,
-                artist: (track.artists || [])[0]?.name || ''
-              }));
-
-              const timesRes = await fetch('/api/lastfm/track-times', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tracks: payload, range })
-              });
-              if (!timesRes.ok) return;
-
-              const data = await timesRes.json();
-              data.times.forEach((minutes, i) => {
-                const el = document.querySelector(`#tracks .track-time[data-track-index="${i}"]`);
-                if (el) el.textContent = formatShortTime(minutes);
-              });
-            } catch (e) {
-              console.error(e);
-            }
-          }
-
-          async function attachLastfmArtistTimes(artists, range) {
-            const note = document.getElementById('artists-lastfm-note');
-            const disclaimer = document.getElementById('artists-lastfm-disclaimer');
-
-            const linked = await isLastfmLinked();
-            if (!linked) {
-              note.hidden = false;
-              disclaimer.hidden = true;
-              return;
-            }
-            note.hidden = true;
-            disclaimer.hidden = false;
-
-            document.querySelectorAll('#artists .track-time').forEach(el => { el.textContent = '···'; });
-
-            try {
-              const payload = artists.map(artist => ({ id: artist.id, name: artist.name }));
-
-              const timesRes = await fetch('/api/lastfm/artist-times', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ artists: payload, range })
-              });
-              if (!timesRes.ok) return;
-
-              const data = await timesRes.json();
-              data.times.forEach((minutes, i) => {
-                const el = document.querySelector(`#artists .track-time[data-artist-index="${i}"]`);
-                if (el) el.textContent = formatShortTime(minutes);
-              });
-            } catch (e) {
-              console.error(e);
-            }
+          async function loadTracks(range) {
+            const t = document.getElementById('tracks');
+            skeletonRows(t, 10, false);
+            const tracks = await fetch(`/api/top-tracks?time_range=${range}`, { cache: 'no-store' }).then(r => r.json());
+            t.innerHTML = '';
+            tracks.forEach((track, i) => t.appendChild(trackRow(track, i)));
+            document.getElementById('tracks-lastfm-disclaimer').hidden = false;
           }
 
           async function loadArtists(range) {
@@ -475,7 +452,7 @@
             const artists = await fetch(`/api/top-artists?time_range=${range}`, { cache: 'no-store' }).then(r => r.json());
             a.innerHTML = '';
             artists.forEach((artist, i) => a.appendChild(artistRow(artist, i)));
-            attachLastfmArtistTimes(artists, range);
+            document.getElementById('artists-lastfm-disclaimer').hidden = false;
           }
 
           function wireRangeTabs(panelId, onChange) {
@@ -501,16 +478,19 @@
           const recent = await fetch('/api/recent').then(r => r.json());
           const r = document.getElementById('recent');
           recent.forEach(item => {
-            const label = `${item.track.name} — ${item.track.artists.map(a => a.name).join(', ')}`;
+            const label = `${item.track.name} — ${item.track.artists.map(a => a.name).join(', ')}` +
+              (item.nowPlaying ? ' · scrobbling now' : '');
             r.appendChild(rowWithArt(thumbOf(item.track.album?.images), item.track.name, label, false));
           });
         } catch (e) {
-          // Not logged in (or the session/token is invalid).
-          document.getElementById('login-btn').hidden = false;
+          // Session says linked, but a call failed (bad/expired session,
+          // Last.fm hiccup, etc.) — fall back to the connect gate.
+          console.error(e);
+          connectForm.hidden = false;
           document.getElementById('user-chip').hidden = true;
           document.getElementById('profile-card').hidden = true;
           document.getElementById('profile').hidden = false;
-          document.getElementById('profile').textContent = 'Not logged in';
+          document.getElementById('profile').textContent = 'Not connected';
 
           document.getElementById('main-content').classList.add('main-content--locked');
           document.getElementById('login-overlay').hidden = false;
@@ -522,8 +502,10 @@
 
   <a href="https://www.buymeacoffee.com/saitsune" target="_blank" rel="noopener" class="coffee-link">☕ Buy me a coffee</a>
 
-  <script src="player.js"></script>
-  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <!-- player.js + the Spotify Web Playback SDK are left out for now: the
+       "Similar Songs" player feature runs on Spotify auth/playback, which
+       this Last.fm-only build doesn't have. Re-add both once that feature
+       is redesigned around a playback source Last.fm can actually support. -->
   <script src="tabs.js"></script>
   <script src="recap.js"></script>
   <script src="lastfm.js"></script>

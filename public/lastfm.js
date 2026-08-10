@@ -1,9 +1,3 @@
-// lastfm.js — "Listening Insights" panel in the Profile tab: all-time
-// favorite genres, week/month/year listening-time estimates, and a few
-// "fun stats" (scrobble count, member since, listening style), sourced
-// from Last.fm since Spotify's own API doesn't expose any of this.
-// Requires the user to link a Last.fm username (read-only, no OAuth
-// needed for this data).
 (function () {
   const section = document.getElementById('lastfm-section');
   const connectBox = document.getElementById('lastfm-connect');
@@ -159,16 +153,15 @@
   async function init() {
     try {
       const res = await fetch('/api/lastfm/status');
-
-      if (res.status === 401) {
-        section.hidden = true; // not logged into Spotify yet
-        return;
-      }
       if (!res.ok) throw new Error('Request failed');
 
       const data = await res.json();
       section.hidden = false;
 
+      // In normal use this panel only becomes reachable once the top-level
+      // connect gate in index.html has already linked an account, so this
+      // should always be true — the connect box below is just a defensive
+      // fallback in case this script ever runs before that.
       if (data.linked) {
         loadAll();
       } else {
@@ -220,11 +213,12 @@
     unlinkBtn.disabled = true;
     try {
       await fetch('/api/lastfm/unlink', { method: 'POST' });
-      window.dispatchEvent(new CustomEvent('lastfm-status-changed'));
-      showConnect();
+      // Disconnecting here now un-links the whole app (Last.fm is the only
+      // account there is), so send the person back to the top-level
+      // connect gate rather than just hiding this one panel.
+      window.location.reload();
     } catch (err) {
       console.error(err);
-    } finally {
       unlinkBtn.disabled = false;
     }
   });
