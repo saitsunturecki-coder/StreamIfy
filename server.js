@@ -33,6 +33,138 @@ function normalizeImages(rawImages) {
     .map(url => ({ url }));
 }
 
+// --- Optional Spotify-backed cover art ------------------------------------
+// Spotify credentials are OPTIONAL and used only for app-level
+// (client-credentials) auth to look up cover art. No user ever logs into
+// Spotify and no per-user Spotify data is read — this is purely "does this
+// track/artist have a picture", the same as an anonymous visitor to
+// open.spotify.com would get. All real stats still come from Last.fm.
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const spotifyArtEnabled = !!(SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET);
+
+if (!spotifyArtEnabled) {
+  console.warn('SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET not set — cover art will stay blank (Last.fm no longer serves real artwork).');
+}
+
+let spotifyToken = null;
+let spotifyTokenExpiresAt = 0;
+
+// Client-credentials grant: authenticates as the *app*, not a user.
+async function getSpotifyToken() {
+  if (spotifyToken && Date.now() < spotifyTokenExpiresAt - 30_000) {
+    return spotifyToken;
+  }
+
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+    },
+    body: 'grant_type=client_credentials'
+  });
+
+  if (!res.ok) {
+    throw new Error(`Spotify token request failed (${res.status})`);
+  }
+
+  const data = await res.json();
+  spotifyToken = data.access_token;
+  spotifyTokenExpiresAt = Date.now() + data.expires_in * 1000;
+  return spotifyToken;
+}
+
+// Small in-memory cache so the same track/artist isn't re-searched on every
+// page load — cover art rarely changes, and this keeps repeat visits fast
+// and well clear of Spotify's rate limits. Cleared on restart; that's fine,
+// it just rebuilds itself on demand.
+const ART_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const artCache = new Map(); // key -> { images, expiresAt }
+
+function getCachedArt(key) {
+  const entry = artCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    artCache.delete(key);
+    return undefined;
+  }
+  return entry.images;
+}
+
+function setCachedArt(key, images) {
+  artCache.set(key, { images, expiresAt: Date.now() + ART_CACHE_TTL_MS });
+  if (artCache.size > 5000) {
+    artCache.delete(artCache.keys().next().value); // crude cap so this can't grow forever
+  }
+}
+
+async function findSpotifyTrackArt(name, artist) {
+  const key = `track:${name.toLowerCase()}|${artist.toLowerCase()}`;
+  const cached = getCachedArt(key);
+  if (cached !== undefined) return cached;
+
+  let images = [];
+  try {
+    const token = await getSpotifyToken();
+    const q = `track:${name} artist:${artist}`;
+    const url = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      const track = data.tracks?.items?.[0];
+      // Spotify's image arrays are already largest -> smallest, unlike
+      // Last.fm's, so no reordering needed here.
+      images = (track?.album?.images || []).map(img => ({ url: img.url }));
+    }
+  } catch (e) {
+    console.warn(`Spotify art lookup failed for track "${name}" by "${artist}":`, e.message);
+  }
+
+  setCachedArt(key, images);
+  return images;
+}
+
+async function findSpotifyArtistArt(name) {
+  const key = `artist:${name.toLowerCase()}`;
+  const cached = getCachedArt(key);
+  if (cached !== undefined) return cached;
+
+  let images = [];
+  try {
+    const token = await getSpotifyToken();
+    const url = `https://api.spotify.com/v1/search?type=artist&limit=1&q=${encodeURIComponent(name)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      const artist = data.artists?.items?.[0];
+      images = (artist?.images || []).map(img => ({ url: img.url }));
+    }
+  } catch (e) {
+    console.warn(`Spotify art lookup failed for artist "${name}":`, e.message);
+  }
+
+  setCachedArt(key, images);
+  return images;
+}
+
+// Runs `items` through `fn` with at most `limit` in flight at once, so a
+// 50-row page doesn't fire 50 simultaneous requests at Spotify.
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 // Thin wrapper around Last.fm's REST API (method + params -> parsed JSON).
 // Last.fm returns HTTP 200 with an `error` field for most failures (bad
 // username, unknown method, etc.), so we check that explicitly rather than
@@ -178,7 +310,7 @@ app.get('/api/top-tracks', requireLink, asyncHandler(async (req, res) => {
 
   const tracks = data.toptracks?.track || [];
 
-  res.json(tracks.map(t => {
+  const mapped = tracks.map(t => {
     const playcount = Number(t.playcount) || 0;
     const durationSeconds = Number(t.duration) || 0;
     return {
@@ -192,7 +324,19 @@ app.get('/api/top-tracks', requireLink, asyncHandler(async (req, res) => {
         ? Math.round((durationSeconds * playcount / 60) * 10) / 10
         : null
     };
-  }));
+  });
+
+  // Last.fm's own images are filtered to empty by normalizeImages() above
+  // (see the placeholder note near the top of this file), so fill in real
+  // cover art from Spotify when it's configured.
+  if (spotifyArtEnabled) {
+    await mapWithConcurrency(mapped, 5, async track => {
+      if (track.album.images.length) return;
+      track.album.images = await findSpotifyTrackArt(track.name, track.artists[0]?.name || '');
+    });
+  }
+
+  res.json(mapped);
 }));
 
 // Last.fm has no per-artist duration, so an artist's listening time is
@@ -212,12 +356,21 @@ app.get('/api/top-artists', requireLink, asyncHandler(async (req, res) => {
 
   const artists = artistData.topartists?.artist || [];
 
-  res.json(artists.map(a => ({
+  const mapped = artists.map(a => ({
     name: a.name,
     images: normalizeImages(a.image),
     playcount: Number(a.playcount) || 0,
     estimatedMinutes: minutesByArtist.get((a.name || '').toLowerCase()) ?? null
-  })));
+  }));
+
+  if (spotifyArtEnabled) {
+    await mapWithConcurrency(mapped, 5, async artist => {
+      if (artist.images.length) return;
+      artist.images = await findSpotifyArtistArt(artist.name);
+    });
+  }
+
+  res.json(mapped);
 }));
 
 app.get('/api/recent', requireLink, asyncHandler(async (req, res) => {
@@ -229,14 +382,23 @@ app.get('/api/recent', requireLink, asyncHandler(async (req, res) => {
 
   const tracks = data.recenttracks?.track || [];
 
-  res.json(tracks.map(t => ({
+  const mapped = tracks.map(t => ({
     nowPlaying: t['@attr']?.nowplaying === 'true',
     track: {
       name: t.name,
       artists: [{ name: t.artist?.['#text'] || 'Unknown artist' }],
       album: { images: normalizeImages(t.image) }
     }
-  })));
+  }));
+
+  if (spotifyArtEnabled) {
+    await mapWithConcurrency(mapped, 5, async item => {
+      if (item.track.album.images.length) return;
+      item.track.album.images = await findSpotifyTrackArt(item.track.name, item.track.artists[0]?.name || '');
+    });
+  }
+
+  res.json(mapped);
 }));
 
 // --- Listening Insights panel: genres + fun stats -------------------------
